@@ -1,0 +1,4 @@
+# Temporary/Debug files
+mismatch_debug.txt
+*.pyc
+__pycache__/

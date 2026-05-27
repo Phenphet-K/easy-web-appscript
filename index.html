@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="th" style="scroll-behavior: smooth;">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>เว็บโรงเรียน</title>
+<link href="https://fonts.googleapis.com/css2?family=Mitr:wght@400;500;600&family=Sarabun:wght@300;400;500;600;700;800&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style id="googleFontLinkNode"></style>
+<?!= include('css'); ?>
+</head>
+<body>
+
+<!-- ===== PUBLIC SITE WRAPPER ===== -->
+<div id="publicSite">
+  <!-- HEADER -->
+  <header>
+    <div class="header-inner">
+      <a href="#" class="school-brand" onclick="showView('home')">
+        <div class="school-logo" id="logoWrap">🏫</div>
+        <div class="school-name">
+          <h1 id="headerSchoolName">กำลังโหลด...</h1>
+          <p id="headerSubtitle"></p>
+        </div>
+      </a>
+      
+      <!-- Hamburger toggle on mobile -->
+      <button class="mobile-toggle" id="mobileToggle" onclick="toggleMobileMenu()">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+
+      <nav id="navMenu">
+        <a id="link-home" class="active" onclick="showView('home')">หน้าหลัก</a>
+        <a id="link-about" onclick="showView('about')">เกี่ยวกับเรา</a>
+        <a id="link-updates" onclick="showView('updates')">ข่าวประกาศ</a>
+        <a id="link-contact" onclick="showView('contact')">ติดต่อเรา</a>
+        <!-- Disguised login trigger dot -->
+        <a href="#" class="hidden-admin-trigger" onclick="openAdminLogin(); return false;">.</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- VIEWS CONTAINERS -->
+  <div id="view-home" class="page-view">
+    <?!= include('home'); ?>
+  </div>
+
+  <div id="view-about" class="page-view" style="display:none;">
+    <?!= include('about'); ?>
+  </div>
+
+  <div id="view-updates" class="page-view" style="display:none;">
+    <?!= include('updates'); ?>
+  </div>
+
+  <div id="view-contact" class="page-view" style="display:none;">
+    <?!= include('contact'); ?>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div class="footer-grid">
+        <div class="footer-school">
+          <h3 id="footerSchoolName">โรงเรียน</h3>
+          <p id="footerAddress"></p>
+          <p id="footerContact" style="margin-top:12px;"></p>
+        </div>
+        <div class="footer-links">
+          <h4>เมนูนำทาง</h4>
+          <ul>
+            <li><a onclick="showView('home')">หน้าหลัก</a></li>
+            <li><a onclick="showView('about')">เกี่ยวกับเรา</a></li>
+            <li><a onclick="showView('updates')">ข่าวประกาศ</a></li>
+            <li><a onclick="showView('contact')">ติดต่อเรา</a></li>
+          </ul>
+        </div>
+        <div class="footer-links">
+          <h4>ช่องทางติดต่อ</h4>
+          <ul>
+            <li><a href="#" id="fbLink" target="_blank" rel="noopener noreferrer">Facebook</a></li>
+            <li><a href="#" id="lineLink" target="_blank" rel="noopener noreferrer">LINE OA</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>© <span id="yearTxt"></span> <span id="footerSchoolName2"></span> — พัฒนาด้วย Google Apps Script Web App</p>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ===== ADMIN PORTAL WRAPPER ===== -->
+<div id="adminPortal" class="page-view" style="display:none;">
+  <?!= include('admin'); ?>
+</div>
+
+<!-- Index Toast Alert -->
+<div id="toast"></div>
+
+<!-- GLOBAL SCRIPTS -->
+<?!= include('javascript'); ?>
+</body>
+</html>
