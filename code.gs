@@ -390,7 +390,17 @@ function setupSpreadsheet() {
     }
   }
 
-  return `✅ Setup สำเร็จ! สร้างตารางข้อมูลตัวอย่างเรียบร้อยแล้ว${backupLog}`;
+  // 4. พยายามสร้าง/อัปเดตไฟล์ HTML ภายในโครงการ Script Project (ผ่าน REST API)
+  let scriptProjectLog = '';
+  try {
+    const apiResult = setupHtmlFilesInScriptProject();
+    scriptProjectLog = '\n' + apiResult;
+  } catch (err) {
+    scriptProjectLog = '\n⚠️ หมายเหตุ: ไม่สามารถสร้างไฟล์ HTML ใน Script Project อัตโนมัติได้ เนื่องจากข้อจำกัดสิทธิ์ (กรุณาทำตามคู่มือการขอสิทธิ์และเปิดใช้งาน Apps Script API หรือดาวน์โหลดมาวางด้วยตนเอง)';
+    Logger.log('Error setting up HTML files via API: ' + err.message);
+  }
+
+  return `✅ Setup สำเร็จ! สร้างตารางข้อมูลตัวอย่างเรียบร้อยแล้ว${backupLog}${scriptProjectLog}`;
 }
 
 // ===== AUTH =====
@@ -1380,4 +1390,89 @@ function testImageGen() {
   } catch (e) {
     Logger.log('❌ เกิดข้อผิดพลาด: ' + e.message);
   }
+}
+
+// ===== SETUP HTML FILES IN PROJECT (VIA APPS SCRIPT API) =====
+function setupHtmlFilesInScriptProject() {
+  const scriptId = ScriptApp.getScriptId();
+  const token = ScriptApp.getOAuthToken();
+  
+  // 1. ดึงไฟล์ปัจจุบันทั้งหมดในโครงการสคริปต์
+  const getUrl = 'https://script.googleapis.com/v1/projects/' + scriptId + '/content';
+  const getResponse = UrlFetchApp.fetch(getUrl, {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Accept': 'application/json'
+    },
+    muteHttpExceptions: true
+  });
+  
+  if (getResponse.getResponseCode() !== 200) {
+    throw new Error('ไม่สามารถดึงข้อมูลไฟล์ปัจจุบันจากโครงการได้: ' + getResponse.getContentText());
+  }
+  
+  const projectContent = JSON.parse(getResponse.getContentText());
+  const files = projectContent.files || [];
+  
+  // 2. ระบุรายชื่อไฟล์ HTML ที่จะสร้าง/ดึงจาก GitHub
+  const targetFiles = ['index', 'home', 'about', 'updates', 'contact', 'admin', 'css', 'javascript'];
+  const githubBaseUrl = 'https://raw.githubusercontent.com/Phenphet-K/easy-web-appscript/main/';
+  
+  let addedCount = 0;
+  let updatedCount = 0;
+  
+  targetFiles.forEach(name => {
+    // ตรวจสอบว่าในโครงการมีไฟล์ชื่อนี้ที่เป็น HTML อยู่แล้วหรือยัง
+    const existingFile = files.find(f => f.name === name && f.type === 'HTML');
+    
+    try {
+      // ดึงซอร์สโค้ดดิ้งไฟล์สดๆ จาก GitHub
+      const fetchUrl = githubBaseUrl + name + '.html';
+      const fileRes = UrlFetchApp.fetch(fetchUrl, { muteHttpExceptions: true });
+      
+      if (fileRes.getResponseCode() === 200) {
+        const sourceCode = fileRes.getContentText();
+        
+        if (existingFile) {
+          // หากมีอยู่แล้ว ให้ทำการอัปเดตโค้ดให้ทันสมัย (หรือเลือกเขียนทับ)
+          existingFile.source = sourceCode;
+          updatedCount++;
+        } else {
+          // หากยังไม่มี ให้บันทึกไฟล์ประเภท HTML เพิ่มเข้าสคริปต์
+          files.push({
+            name: name,
+            type: 'HTML',
+            source: sourceCode
+          });
+          addedCount++;
+        }
+      } else {
+        Logger.log('ไม่พบไฟล์บน GitHub สำหรับ URL: ' + fetchUrl);
+      }
+    } catch (e) {
+      Logger.log('เกิดข้อผิดพลาดในการโหลดไฟล์ ' + name + ' จาก GitHub: ' + e.message);
+    }
+  });
+  
+  // 3. ทำการบันทึก (PUT) ชุดไฟล์ทั้งหมดกลับไปที่โครงการ
+  if (addedCount > 0 || updatedCount > 0) {
+    const putResponse = UrlFetchApp.fetch(getUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      },
+      payload: JSON.stringify({ files: files }),
+      muteHttpExceptions: true
+    });
+    
+    if (putResponse.getResponseCode() !== 200) {
+      throw new Error('ไม่สามารถบันทึกไฟล์กลับไปยังสคริปต์โครงการได้: ' + putResponse.getContentText());
+    }
+    
+    return '✅ ดำเนินการสร้างไฟล์ HTML สำเร็จ! เพิ่มไฟล์ใหม่ ' + addedCount + ' ไฟล์ และอัปเดตโค้ด ' + updatedCount + ' ไฟล์ (กรุณารีเฟรชหน้าต่างเบราว์เซอร์ของหน้าต่าง Apps Script เพื่อให้ระบบโหลดรายการไฟล์ที่สร้างขึ้นมาใหม่)';
+  }
+  
+  return 'ℹ️ โครงการมีไฟล์ HTML ครบถ้วนแล้ว ไม่ต้องสร้างเพิ่มเติม';
 }
