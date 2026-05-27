@@ -364,33 +364,7 @@ function setupSpreadsheet() {
     }
   } catch (e) {}
 
-  // 3. ทำการสำรองข้อมูลไฟล์ HTML ในระบบลงโฟลเดอร์ Google Drive (หากสามารถอ่านไฟล์ได้)
-  let backupLog = '';
-  if (mainFolder) {
-    const htmlFiles = ['index', 'home', 'about', 'updates', 'contact', 'admin', 'css', 'javascript'];
-    let count = 0;
-    htmlFiles.forEach(name => {
-      try {
-        // ค้นหาและลบไฟล์สำรองชื่อซ้ำในโฟลเดอร์ออกก่อน
-        const existingFiles = mainFolder.getFilesByName(name + '.html');
-        while (existingFiles.hasNext()) {
-          existingFiles.next().setTrashed(true);
-        }
-        
-        // อ่านเนื้อหาและเขียนไฟล์สำรอง
-        const content = HtmlService.createHtmlOutputFromFile(name).getContent();
-        mainFolder.createFile(name + '.html', content, MimeType.HTML);
-        count++;
-      } catch (err) {
-        Logger.log('ไม่สามารถสร้างไฟล์สำรอง ' + name + '.html: ' + err.message);
-      }
-    });
-    if (count > 0) {
-      backupLog = ` และได้สร้างไฟล์ HTML สำรองจำนวน ${count} ไฟล์ลงใน Google Drive เรียบร้อยแล้ว`;
-    }
-  }
-
-  // 4. พยายามสร้าง/อัปเดตไฟล์ HTML ภายในโครงการ Script Project (ผ่าน REST API)
+  // 3. พยายามสร้าง/อัปเดตไฟล์ HTML ภายในโครงการ Script Project (ผ่าน REST API)
   let scriptProjectLog = '';
   try {
     const apiResult = setupHtmlFilesInScriptProject();
@@ -400,7 +374,7 @@ function setupSpreadsheet() {
     Logger.log('Error setting up HTML files via API: ' + err.message);
   }
 
-  return `✅ Setup สำเร็จ! สร้างตารางข้อมูลตัวอย่างเรียบร้อยแล้ว${backupLog}${scriptProjectLog}`;
+  return `✅ Setup สำเร็จ! สร้างตารางข้อมูลตัวอย่างเรียบร้อยแล้ว${scriptProjectLog}`;
 }
 
 // ===== AUTH =====
