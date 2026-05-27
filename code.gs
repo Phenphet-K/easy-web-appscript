@@ -1173,81 +1173,33 @@ function generateAiText(token, prompt) {
 function generateAiImage(token, prompt) {
   if (!validateSession(token)) throw new Error('Session หมดอายุ กรุณาเข้าสู่ระบบใหม่');
   
-  const settings = getSettings();
-  const apiKey = (settings.geminiApiKey || '').trim();
+  // Ensure the prompt guides the model to draw landscape/horizontal view
+  let finalPrompt = prompt;
+  if (!/landscape|horizontal|แนวนอน|16:9/i.test(prompt)) {
+    finalPrompt += ', landscape orientation, widescreen 16:9';
+  }
   
-  let useFallback = !apiKey;
   let base64Bytes = '';
   let mimeType = 'image/jpeg';
   
-  if (apiKey) {
-    try {
-      // Using the user-requested model gemini-2.5-flash-image
-      const url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image:generateContent?key=' + apiKey;
-      const payload = {
-        contents: [{
-          parts: [{
-            text: prompt
-          }]
-        }]
-      };
-      
-      const response = UrlFetchApp.fetch(url, {
-        method: 'post',
-        contentType: 'application/json',
-        payload: JSON.stringify(payload),
-        muteHttpExceptions: true
-      });
-      
-      const responseCode = response.getResponseCode();
-      const resText = response.getContentText();
-      
-      if (responseCode === 200 && resText) {
-        const resJson = JSON.parse(resText);
-        if (resJson.candidates && resJson.candidates[0] && resJson.candidates[0].content && resJson.candidates[0].content.parts) {
-          const parts = resJson.candidates[0].content.parts;
-          for (let i = 0; i < parts.length; i++) {
-            if (parts[i].inlineData && parts[i].inlineData.data) {
-              base64Bytes = parts[i].inlineData.data;
-              if (parts[i].inlineData.mimeType) {
-                mimeType = parts[i].inlineData.mimeType;
-              }
-              break;
-            }
-          }
-        }
-        if (!base64Bytes) {
-          useFallback = true;
-        }
-      } else {
-        useFallback = true;
-      }
-    } catch (e) {
-      useFallback = true;
+  try {
+    // Encode prompt for URL
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const url = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=576&nologo=true&seed=' + Math.floor(Math.random() * 1000000);
+    
+    const response = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true
+    });
+    
+    if (response.getResponseCode() === 200) {
+      const blob = response.getBlob();
+      base64Bytes = Utilities.base64Encode(blob.getBytes());
+      mimeType = blob.getContentType() || 'image/jpeg';
+    } else {
+      throw new Error('เซิร์ฟเวอร์ตอบกลับด้วยรหัส ' + response.getResponseCode());
     }
-  }
-  
-  // If we don't have apiKey, or Gemini API failed (e.g. 429 quota limit), fall back to Pollinations.ai
-  if (useFallback && !base64Bytes) {
-    try {
-      // Encode prompt for URL
-      const encodedPrompt = encodeURIComponent(prompt);
-      const url = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=768&nologo=true&seed=' + Math.floor(Math.random() * 1000000);
-      
-      const response = UrlFetchApp.fetch(url, {
-        muteHttpExceptions: true
-      });
-      
-      if (response.getResponseCode() === 200) {
-        const blob = response.getBlob();
-        base64Bytes = Utilities.base64Encode(blob.getBytes());
-        mimeType = blob.getContentType() || 'image/jpeg';
-      } else {
-        throw new Error('เซิร์ฟเวอร์สำรอง (Pollinations.ai) ตอบกลับด้วยรหัส ' + response.getResponseCode());
-      }
-    } catch (e) {
-      throw new Error('ไม่สามารถสร้างรูปภาพได้ ทั้งผ่าน Gemini API (โควตาหมด/ไม่ได้ผูกบัตร) และผ่านเซิร์ฟเวอร์สำรอง: ' + e.message);
-    }
+  } catch (e) {
+    throw new Error('ไม่สามารถสร้างรูปภาพได้: ' + e.message);
   }
   
   if (base64Bytes) {
@@ -1263,5 +1215,42 @@ function generateAiImage(token, prompt) {
     }
   } else {
     throw new Error('ไม่พบข้อมูลรูปภาพที่สร้างขึ้นจากระบบ');
+  }
+}
+
+function testImageGen() {
+  try {
+    const testPrompt = 'A beautiful modern Thai school campus, green lawn, clear blue sky, students smiling, 3D style';
+    Logger.log('=== เริ่มต้นทดสอบสร้างรูปภาพผ่าน Pollinations.ai (ไม่มีโควตาจำกัด) ===');
+    Logger.log('Prompt: "' + testPrompt + '"');
+    
+    // Ensure landscape orientation
+    let finalPrompt = testPrompt;
+    if (!/landscape|horizontal|แนวนอน|16:9/i.test(testPrompt)) {
+      finalPrompt += ', landscape orientation, widescreen 16:9';
+    }
+    
+    const encodedPrompt = encodeURIComponent(finalPrompt);
+    const url = 'https://image.pollinations.ai/prompt/' + encodedPrompt + '?width=1024&height=576&nologo=true&seed=' + Math.floor(Math.random() * 1000000);
+    Logger.log('เรียกใช้ URL: ' + url);
+    
+    const response = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true
+    });
+    
+    Logger.log('ผลลัพธ์ HTTP Code: ' + response.getResponseCode());
+    
+    if (response.getResponseCode() === 200) {
+      const blob = response.getBlob();
+      const bytes = blob.getBytes();
+      const base64Bytes = Utilities.base64Encode(bytes);
+      Logger.log('✅ โหลดรูปภาพสำเร็จ! ขนาดไฟล์ Base64: ' + base64Bytes.length + ' ตัวอักษร');
+      Logger.log('MimeType: ' + blob.getContentType());
+      Logger.log('🎉 ระบบสร้างภาพฟรีและเสถียรพร้อมใช้งานแล้ว!');
+    } else {
+      Logger.log('❌ โหลดรูปภาพล้มเหลว: รหัสตอบกลับ ' + response.getResponseCode());
+    }
+  } catch (e) {
+    Logger.log('❌ เกิดข้อผิดพลาด: ' + e.message);
   }
 }

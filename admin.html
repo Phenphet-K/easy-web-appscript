@@ -43,7 +43,7 @@
         <span class="icon">📰</span> จัดการข่าวสาร
       </div>
       <div class="nav-item" onclick="showPage('updates')">
-        <span class="icon">📢</span> ประกาศอัปเดต
+        <span class="icon">📝</span> จัดการบทความ
       </div>
       <div class="nav-item" onclick="showPage('activities')">
         <span class="icon">🖼️</span> ภาพกิจกรรม
@@ -244,7 +244,7 @@
           </div>
           <div class="form-row">
             <div class="form-group-admin">
-              <label>🔑 Google Gemini API Key (สำหรับเรียกใช้ระบบผู้ช่วย AI เจนรูปภาพ)</label>
+              <label>🔑 Google Gemini API Key (สำหรับระบบผู้ช่วย AI ช่วยเขียนบทความ)</label>
               <input type="password" class="form-control" id="set_geminiApiKey" placeholder="ป้อน Gemini API Key จาก Google AI Studio...">
             </div>
             <div class="form-group-admin">
@@ -640,7 +640,7 @@
     <!-- ===== PAGE: UPDATES (ANNOUNCEMENTS) ===== -->
     <div class="page" id="page-updates">
       <div style="margin-bottom:20px; display:flex; justify-content:flex-end;">
-        <button class="btn btn-primary" onclick="openUpdateForm()">➕ เพิ่มประกาศอัปเดต</button>
+        <button class="btn btn-primary" onclick="openUpdateForm()">➕ เพิ่มบทความใหม่</button>
       </div>
       <div class="card">
         <div class="card-body" style="padding:0;">
@@ -648,15 +648,15 @@
             <table>
               <thead>
                 <tr>
-                  <th>หัวข้อประกาศ</th>
-                  <th>วันที่ประกาศ</th>
+                  <th>หัวข้อบทความ</th>
+                  <th>วันที่เผยแพร่</th>
                   <th>สถานะ</th>
                   <th>จัดการ</th>
                 </tr>
               </thead>
               <tbody id="updatesTableBody">
                 <tr>
-                  <td colspan="4" style="text-align:center;padding:40px;color:#aaa;">กำลังโหลดข่าวประกาศ...</td>
+                  <td colspan="4" style="text-align:center;padding:40px;color:#aaa;">กำลังโหลดบทความ...</td>
                 </tr>
               </tbody>
             </table>
@@ -1035,29 +1035,29 @@
 <div class="modal-overlay" id="updateFormModal">
   <div class="modal-form" style="max-width: 800px; width: 90%;">
     <div class="modal-form-header">
-      <h3 id="updateFormTitle">➕ เพิ่มประกาศอัปเดต</h3>
+      <h3 id="updateFormTitle">➕ เพิ่มบทความใหม่</h3>
       <button class="close-btn" onclick="closeUpdateForm()">✕</button>
     </div>
     <div class="modal-form-body">
       <input type="hidden" id="updateEditId">
       <div class="form-group-admin">
-        <label>หัวข้อประกาศ *</label>
-        <input class="form-control" id="updateTitle" placeholder="ระบุหัวข้อข่าวประกาศที่ต้องการแสดง...">
+        <label>หัวข้อบทความ *</label>
+        <input class="form-control" id="updateTitle" placeholder="ระบุหัวข้อบทความที่ต้องการแสดง...">
       </div>
       <div class="form-group-admin">
         <label style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
-          <span>เนื้อหาประกาศ (สามารถออกแบบสไตล์บทความได้เต็มรูปแบบ) *</span>
+          <span>เนื้อหาบทความ (ออกแบบและจัดวางภาพประกอบได้เต็มรูปแบบ) *</span>
           <button class="ai-trigger-badge" type="button" onclick="openAiAssistant('updateContent', 'text')">
-            🪄 ช่วยเขียนประกาศด้วย AI
+            🪄 ช่วยเขียนบทความด้วย AI
           </button>
         </label>
-        <textarea class="form-control" id="updateContent" rows="10" placeholder="ระบุรายละเอียดประกาศ..." style="display:none;"></textarea>
+        <textarea class="form-control" id="updateContent" rows="10" placeholder="ระบุรายละเอียดเนื้อหาบทความ..." style="display:none;"></textarea>
       </div>
       <div class="form-group-admin">
-        <label>สถานะประกาศ</label>
+        <label>สถานะการเผยแพร่</label>
         <select class="form-control" id="updatePublished">
-          <option value="true">เผยแพร่บนเว็บไซต์</option>
-          <option value="false">ซ่อนประกาศชั่วคราว</option>
+          <option value="true">เผยแพร่ (แสดงผลต่อสาธารณะ)</option>
+          <option value="false">แบบร่าง (ซ่อนบทความชั่วคราว)</option>
         </select>
       </div>
     </div>
@@ -1068,12 +1068,12 @@
   </div>
 </div>
 
-<!-- ===== MODAL: GEMINI AI ASSISTANT ===== -->
+<!-- ===== MODAL: AI ASSISTANT ===== -->
 <div class="modal-overlay" id="aiAssistantModal" style="z-index: 250;">
   <div class="modal-form" style="max-width: 500px; border-radius: var(--radius); box-shadow: var(--shadow-premium);">
     <div class="modal-form-header" style="border-bottom: 1px solid var(--border); padding-bottom: 16px;">
       <h3 style="font-family: 'Mitr', sans-serif; display: flex; align-items: center; gap: 8px; color: var(--primary); margin: 0;">
-        <span>🪄</span> ระบบผู้ช่วย AI (Gemini Assistant)
+        <span>🪄</span> ระบบผู้ช่วย AI (AI Assistant)
       </h3>
       <button class="close-btn" onclick="closeAiAssistant()">✕</button>
     </div>
@@ -1085,6 +1085,11 @@
       <div class="ai-options-toggle" id="aiModeToggleContainer">
         <button type="button" class="ai-toggle-btn active" id="aiToggleTextBtn" onclick="setAiMode('text')">✍️ เขียนเนื้อหาบทความ</button>
         <button type="button" class="ai-toggle-btn" id="aiToggleImageBtn" onclick="setAiMode('image')">🎨 เจนรูปภาพประกอบ</button>
+      </div>
+
+      <!-- Info panel for image generation -->
+      <div id="aiImageInfoText" style="display: none; font-size: 0.78rem; color: var(--text-secondary); margin-top: 8px; padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10B981; border-radius: 4px; line-height: 1.4;">
+        💡 ระบบสร้างรูปภาพจะประมวลผลผ่าน Pollinations.ai <strong>(ฟรี 100% ไม่มีโควตาจำกัด และไม่ต้องใช้ API Key)</strong> พร้อมอัปโหลดเข้าสู่ Google Drive ของคุณโดยอัตโนมัติ
       </div>
       
       <div class="form-group-admin" style="margin-top: 16px;">

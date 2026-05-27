@@ -2,13 +2,13 @@
 <div id="updatesView" class="updates-bg" style="padding: 12px 0;">
   <div class="section">
     <div class="section-header" style="text-align: center; margin-bottom: 40px;">
-      <h2 class="section-title">📢 ข่าวประกาศและอัปเดตล่าสุด</h2>
-      <p style="color: var(--text-secondary); margin-top: 8px;">ติดตามข่าวสารความเคลื่อนไหว ประกาศ และการอัปเดตข้อมูลข่าวประชาสัมพันธ์จากทางสถาบัน</p>
+      <h2 class="section-title">📝 บทความและสาระน่ารู้ล่าสุด</h2>
+      <p style="color: var(--text-secondary); margin-top: 8px;">ติดตามอ่านบทความที่เป็นประโยชน์ สาระน่ารู้ และข้อมูลข่าวสารจากทางสถาบัน</p>
     </div>
     
     <div class="updates-grid-layout" id="publicUpdatesList" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 24px; margin-bottom: 40px;">
       <div style="text-align:center; padding: 40px; color: var(--text-secondary); grid-column: 1 / -1;">
-        <span class="spinner"></span> กำลังโหลดข้อมูลประกาศ...
+        <span class="spinner"></span> กำลังโหลดบทความ...
       </div>
     </div>
   </div>
@@ -18,17 +18,17 @@
 <div class="modal-overlay" id="publicUpdateModal" style="z-index: 200;">
   <div class="modal-form" style="max-width: 750px; padding: 0; overflow: hidden; border-radius: var(--radius); border: none; box-shadow: var(--shadow-premium);">
     <div style="background: linear-gradient(135deg, var(--primary), var(--primary-light)); color: white; padding: 24px 32px; position: relative;">
-      <span class="badge" style="background: var(--gold); color: var(--primary); font-weight: 700; margin-bottom: 8px; display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem;">📢 ประกาศ</span>
-      <h3 id="publicUpdateModalTitle" style="font-family: 'Mitr', sans-serif; font-size: 1.35rem; font-weight: 500; line-height: 1.4; margin: 0; padding-right: 32px;">หัวข้อประกาศ</h3>
+      <span class="badge" style="background: var(--gold); color: var(--primary); font-weight: 700; margin-bottom: 8px; display: inline-block; border-radius: 4px; padding: 2px 8px; font-size: 0.75rem;">📝 บทความ</span>
+      <h3 id="publicUpdateModalTitle" style="font-family: 'Mitr', sans-serif; font-size: 1.35rem; font-weight: 500; line-height: 1.4; margin: 0; padding-right: 32px;">หัวข้อบทความ</h3>
       <div id="publicUpdateModalDate" style="font-size: 0.8rem; opacity: 0.8; margin-top: 8px; display: flex; align-items: center; gap: 6px;">
-        📅 ประกาศเมื่อ: -
+        📅 เผยแพร่เมื่อ: -
       </div>
       <button class="close-btn" onclick="closePublicUpdateModal()" style="position: absolute; top: 22px; right: 24px; color: white; background: rgba(255, 255, 255, 0.15); border: none; border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: var(--transition); font-size: 1.1rem; line-height: 1;">✕</button>
     </div>
     <div class="modal-form-body" style="padding: 32px; max-height: 480px; overflow-y: auto; background: var(--surface);">
       <!-- Rich HTML content container -->
       <div id="publicUpdateModalContent" class="rich-content-view" style="color: var(--text-primary); line-height: 1.8; font-size: 0.98rem;">
-        เนื้อหาประกาศ...
+        เนื้อหาบทความ...
       </div>
     </div>
     <div class="modal-form-footer" style="padding: 16px 32px; background: var(--background); border-top: 1px solid var(--border); display: flex; justify-content: flex-end;">

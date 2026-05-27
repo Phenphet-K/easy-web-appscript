@@ -567,7 +567,7 @@
   const PAGE_TITLES = {
     overview: ['ภาพรวม', 'ข้อมูลสรุปและเริ่มต้นใช้งานเว็บไซต์'],
     news: ['จัดการข่าวสาร', 'เพิ่ม แก้ไข หรือลบ ข่าวประชาสัมพันธ์และบทความ'],
-    updates: ['ประกาศอัปเดต', 'จัดการข่าวประกาศและการอัปเดตของโรงเรียน'],
+    updates: ['จัดการบทความ', 'เขียนและจัดการบทความ สาระน่ารู้ และข่าวสารประชาสัมพันธ์'],
     activities: ['ภาพกิจกรรม', 'จัดการแกลเลอรี่กิจกรรมโรงเรียน'],
     events: ['จัดการปฏิทินกิจกรรม', 'เพิ่ม แก้ไข หรือลบ รายการกิจกรรมโรงเรียน'],
     board: ['จัดการคณะผู้บริหาร', 'เพิ่ม แก้ไข หรือลบ รายนามผู้บริหารและบุคลากรสถานศึกษา'],
@@ -2351,6 +2351,7 @@
     sourceArea.addEventListener('input', syncContent);
     sourceArea.addEventListener('blur', syncContent);
     const instance = {
+      contentArea: contentArea,
       setValue(val) {
         if (isSourceMode) {
           sourceArea.value = val;
@@ -2458,16 +2459,19 @@
     const toggleImageBtn = document.getElementById('aiToggleImageBtn');
     const promptLabel = document.getElementById('aiPromptLabel');
     const promptInput = document.getElementById('aiPromptInput');
+    const imgInfo = document.getElementById('aiImageInfoText');
     if (type === 'text') {
       toggleTextBtn.classList.add('active');
       toggleImageBtn.classList.remove('active');
       promptLabel.textContent = 'คำสั่งหรือหัวข้อที่ต้องการให้ AI ช่วยเขียน *';
       promptInput.placeholder = 'เช่น "เขียนคำอธิบายประกาศสำหรับกิจกรรมวันเด็กแห่งชาติ ประจำปี 2569 มีซุ้มตักไข่และอาหารฟรี..."';
+      if (imgInfo) imgInfo.style.display = 'none';
     } else {
       toggleTextBtn.classList.remove('active');
       toggleImageBtn.classList.add('active');
       promptLabel.textContent = 'รายละเอียดรูปภาพที่ต้องการให้ AI เจน (Prompt) *';
       promptInput.placeholder = 'เช่น "โรงเรียนไทยแบบโมเดิร์นที่มีเด็กนักเรียนยิ้มแย้มเดินผ่านสนามหญ้าสีเขียว ท้องฟ้าแจ่มใส ลายเส้น 3D สีสันสดใส"';
+      if (imgInfo) imgInfo.style.display = 'block';
     }
   }
   function triggerAiGeneration() {
@@ -2486,7 +2490,11 @@
     const previewGroup = document.getElementById('aiPreviewGroup');
     const previewBox = document.getElementById('aiResultPreview');
     previewGroup.style.display = 'block';
-    previewBox.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-secondary);"><span class="spinner"></span> กำลังส่งข้อมูลไปยัง Google Gemini API...</div>';
+    if (type === 'text') {
+      previewBox.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-secondary);"><span class="spinner"></span> กำลังส่งข้อมูลไปยัง Google Gemini/Groq API เพื่อประมวลผลข้อความ...</div>';
+    } else {
+      previewBox.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-secondary);"><span class="spinner"></span> กำลังส่งข้อมูลเพื่อสร้างรูปภาพผ่าน Pollinations.ai (ฟรี ไม่มีโควตา)...</div>';
+    }
     if (type === 'text') {
       // Append formatting instruction to prompt dynamically
       let finalPrompt = prompt;
@@ -2526,62 +2534,12 @@
           document.getElementById('aiUseBtn').disabled = false;
         })
         .withFailureHandler(err => {
-          console.warn('Backend image generation failed, falling back to Pollinations.ai client-side:', err);
-          previewBox.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-secondary);"><span class="spinner"></span> เซิร์ฟเวอร์หลักโควตาหมด กำลังใช้งานเซิร์ฟเวอร์สำรองในเบราว์เซอร์...</div>';
-          
-          generateImageViaPollinations(prompt, imageUrl => {
-            genBtn.innerHTML = prevHTML;
-            genBtn.disabled = false;
-            window.lastAiResult = imageUrl;
-            previewBox.innerHTML = `<img class="ai-preview-image" src="${resolveImageUrl(imageUrl)}" alt="AI Generated Output">`;
-            document.getElementById('aiUseBtn').disabled = false;
-          }, uploadErr => {
-            genBtn.innerHTML = prevHTML;
-            genBtn.disabled = false;
-            previewBox.innerHTML = `<div style="color: #EF4444; font-weight: 500;">❌ เกิดข้อผิดพลาด: ไม่สามารถสร้างรูปภาพได้ ทั้งผ่านเซิร์ฟเวอร์หลัก (${err.message}) และเซิร์ฟเวอร์สำรอง (${uploadErr.message})</div>`;
-          });
+          genBtn.innerHTML = prevHTML;
+          genBtn.disabled = false;
+          previewBox.innerHTML = `<div style="color: #EF4444; font-weight: 500;">❌ เกิดข้อผิดพลาด: ไม่สามารถสร้างรูปภาพได้ (${err.message})</div>`;
         })
         .generateAiImage(SESSION_TOKEN, prompt);
     }
-  }
-  function generateImageViaPollinations(prompt, onSuccess, onError) {
-    const url = 'https://image.pollinations.ai/prompt/' + encodeURIComponent(prompt) + '?width=1024&height=768&seed=' + Math.floor(Math.random() * 1000000);
-    fetch(url)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error('เซิร์ฟเวอร์สำรองตอบกลับด้วยรหัส ' + response.status);
-        }
-        return response.blob();
-      })
-      .then(blob => {
-        const reader = new FileReader();
-        reader.onloadend = function() {
-          const base64Data = reader.result.split(',')[1];
-          const mimeType = blob.type || 'image/jpeg';
-          const fileExt = mimeType.split('/')[1] || 'jpg';
-          const fileName = 'ai_generated_image_' + Date.now() + '.' + fileExt;
-          
-          google.script.run
-            .withSuccessHandler(uploadRes => {
-              if (uploadRes.success) {
-                onSuccess(uploadRes.url);
-              } else {
-                onError(new Error('บันทึกรูปภาพลง Google Drive ล้มเหลว: ' + uploadRes.message));
-              }
-            })
-            .withFailureHandler(err => {
-              onError(err);
-            })
-            .uploadImage(SESSION_TOKEN, base64Data, fileName, mimeType);
-        };
-        reader.onerror = function() {
-          onError(new Error('ไม่สามารถแปลงไฟล์ภาพเป็น Base64 ได้'));
-        };
-        reader.readAsDataURL(blob);
-      })
-      .catch(err => {
-        onError(err);
-      });
   }
   function insertAiOutput() {
     const inputId = document.getElementById('aiTargetInputId').value;
@@ -2597,10 +2555,23 @@
         const typeFolder = inputId === 'newsImageUrl' ? 'news' : 'act';
         renderMultiImagePreviews(inputEl.value, previewListId, inputId);
       } else {
-        inputEl.value = window.lastAiResult;
-        
-        if (window.classicEditors && window.classicEditors[inputId]) {
-          window.classicEditors[inputId].setValue(window.lastAiResult);
+        if (type === 'image') {
+          if (window.classicEditors && window.classicEditors[inputId]) {
+            const editor = window.classicEditors[inputId];
+            if (editor.contentArea) {
+              editor.contentArea.focus();
+              const driveUrl = resolveImageUrl(window.lastAiResult);
+              document.execCommand('insertImage', false, driveUrl);
+              editor.contentArea.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+          } else {
+            inputEl.value = window.lastAiResult;
+          }
+        } else {
+          inputEl.value = window.lastAiResult;
+          if (window.classicEditors && window.classicEditors[inputId]) {
+            window.classicEditors[inputId].setValue(window.lastAiResult);
+          }
         }
       }
       showToastAdmin('📥 นำผลลัพธ์จาก AI เข้าสู่แบบฟอร์มแล้ว');
@@ -2609,17 +2580,17 @@
   }
   
   /* ============================================================
-     ADMIN UPDATES (📢 ประกาศอัปเดต) CRUD CONTROLLER
+     ADMIN UPDATES (📝 จัดการบทความ) CRUD CONTROLLER
      ============================================================ */
   window.updatesMap = {};
   function loadUpdates() {
     const tbody = document.getElementById('updatesTableBody');
-    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:#aaa;"><span class="spinner"></span> กำลังโหลดประกาศอัปเดต...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:#aaa;"><span class="spinner"></span> กำลังโหลดบทความ...</td></tr>';
     google.script.run
       .withSuccessHandler(updates => {
         window.updatesMap = {};
         if (!updates.length) {
-          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:#aaa;">ยังไม่มีข่าวประกาศอัปเดตในระบบ</td></tr>';
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:40px;color:#aaa;">ยังไม่มีบทความในระบบ</td></tr>';
           return;
         }
         tbody.innerHTML = updates.map(u => {
@@ -2647,7 +2618,7 @@
   }
   function openUpdateForm() {
     clearValidation('updateFormModal');
-    document.getElementById('updateFormTitle').textContent = '➕ เพิ่มข่าวประกาศอัปเดต';
+    document.getElementById('updateFormTitle').textContent = '➕ เพิ่มบทความใหม่';
     document.getElementById('updateEditId').value = '';
     document.getElementById('updateTitle').value = '';
     document.getElementById('updateContent').value = '';
@@ -2663,7 +2634,7 @@
     clearValidation('updateFormModal');
     const u = window.updatesMap[id];
     if (!u) return;
-    document.getElementById('updateFormTitle').textContent = '✏️ แก้ไขข่าวประกาศอัปเดต';
+    document.getElementById('updateFormTitle').textContent = '✏️ แก้ไขบทความ';
     document.getElementById('updateEditId').value = u.id;
     document.getElementById('updateTitle').value = u.title || '';
     document.getElementById('updateContent').value = u.content || '';
@@ -2685,12 +2656,12 @@
       published: document.getElementById('updatePublished').value === 'true'
     };
     let valid = true;
-    if (!data.title) { setInvalid('updateTitle', 'กรุณากรอกหัวข้อประกาศ'); valid = false; }
-    if (!data.content) { setInvalid('updateContent', 'กรุณากรอกเนื้อหาประกาศ'); valid = false; }
+    if (!data.title) { setInvalid('updateTitle', 'กรุณากรอกหัวข้อบทความ'); valid = false; }
+    if (!data.content) { setInvalid('updateContent', 'กรุณากรอกเนื้อหาบทความ'); valid = false; }
     if (!valid) return;
     const btn = document.querySelector('#updateFormModal .modal-form-footer .btn-primary');
     const oldHTML = btn.innerHTML;
-    btn.innerHTML = '<span class="spinner"></span> กำลังบันทึกประกาศ...';
+    btn.innerHTML = '<span class="spinner"></span> กำลังบันทึกบทความ...';
     btn.disabled = true;
     if (editId) {
       google.script.run
@@ -2698,7 +2669,7 @@
           btn.innerHTML = oldHTML;
           btn.disabled = false;
           if (r.success) {
-            showToastAdmin('✅ แก้ไขข่าวประกาศอัปเดตสำเร็จ');
+            showToastAdmin('✅ แก้ไขบทความสำเร็จ');
             closeUpdateForm();
             loadUpdates();
             if (typeof loadAllData === 'function') loadAllData();
@@ -2718,7 +2689,7 @@
           btn.innerHTML = oldHTML;
           btn.disabled = false;
           if (r.success) {
-            showToastAdmin('✅ เพิ่มข่าวประกาศอัปเดตสำเร็จ');
+            showToastAdmin('✅ เพิ่มบทความสำเร็จ');
             closeUpdateForm();
             loadUpdates();
             if (typeof loadAllData === 'function') loadAllData();
@@ -2736,13 +2707,13 @@
   }
   function deleteUpdateItem(id) {
     showConfirm(
-      '🗑️ ยืนยันการลบข่าวประกาศ',
-      'คุณแน่ใจหรือไม่ว่าต้องการลบข่าวประกาศนี้ออกจากระบบอย่างถาวร? การลบนี้จะไม่สามารถกู้คืนได้',
+      '🗑️ ยืนยันการลบบทความ',
+      'คุณแน่ใจหรือไม่ว่าต้องการลบบทความนี้ออกจากระบบอย่างถาวร? การลบนี้จะไม่สามารถกู้คืนได้',
       () => {
         google.script.run
           .withSuccessHandler(r => {
             if (r.success) {
-              showToastAdmin('🗑️ ลบประกาศสำเร็จแล้ว');
+              showToastAdmin('🗑️ ลบบทความสำเร็จแล้ว');
               loadUpdates();
               if (typeof loadAllData === 'function') loadAllData();
             } else {
@@ -2766,8 +2737,8 @@
     if (!updates.length) {
       grid.innerHTML = `
         <div class="empty-state" style="grid-column: 1 / -1;">
-          <div class="icon">📢</div>
-          <p>ยังไม่มีประกาศหรือการอัปเดตข้อมูลข่าวสารในขณะนี้</p>
+          <div class="icon">📝</div>
+          <p>ยังไม่มีบทความในขณะนี้</p>
         </div>
       `;
       return;
@@ -2784,12 +2755,12 @@
         <div class="news-card" onclick="openPublicUpdateDetails('${u.id}')" style="cursor: pointer; display: flex; flex-direction: column;">
           <div class="news-card-body" style="flex-grow: 1; display: flex; flex-direction: column; justify-content: space-between; padding: 24px;">
             <div>
-              <span class="news-category" style="background: var(--gold); color: var(--primary); font-weight: 600;">📢 อัปเดต</span>
+              <span class="news-category" style="background: var(--gold); color: var(--primary); font-weight: 600;">📝 บทความ</span>
               <h3 style="font-family: 'Mitr', sans-serif; font-size: 1.15rem; margin-top: 12px; margin-bottom: 8px; line-height: 1.4;">${escapeHtmlHome(u.title)}</h3>
               <p style="color: var(--text-secondary); font-size: 0.88rem; line-height: 1.6; margin-bottom: 16px;">${escapeHtmlHome(textExcerpt)}</p>
             </div>
             <div class="news-meta" style="border-top: 1px solid var(--border); padding-top: 12px; display: flex; justify-content: space-between; align-items: center;">
-              <span class="news-date" style="font-size:0.8rem; color: var(--text-muted);">📅 ประกาศเมื่อ: ${formatDateHome(u.date)}</span>
+              <span class="news-date" style="font-size:0.8rem; color: var(--text-muted);">📅 เผยแพร่เมื่อ: ${formatDateHome(u.date)}</span>
               <span style="font-size:0.8rem; color: var(--gold-dark); font-weight: 600;">อ่านเพิ่มเติม ➔</span>
             </div>
           </div>
@@ -2801,7 +2772,7 @@
     const u = (window.allUpdates || []).find(item => item.id === id);
     if (!u) return;
     document.getElementById('publicUpdateModalTitle').textContent = u.title;
-    document.getElementById('publicUpdateModalDate').innerHTML = `📅 ประกาศเมื่อ: ${formatDateHome(u.date)}`;
+    document.getElementById('publicUpdateModalDate').innerHTML = `📅 เผยแพร่เมื่อ: ${formatDateHome(u.date)}`;
     
     // Insert raw HTML as the layout configured by the editor should be fully respected
     document.getElementById('publicUpdateModalContent').innerHTML = u.content || '';
