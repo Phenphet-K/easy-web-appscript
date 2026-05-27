@@ -30,21 +30,55 @@ function getActiveSS() {
 
 function getUploadFolder() {
   let folderId = '';
-  if (CONFIG.DRIVE_FOLDER_ID && CONFIG.DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE') {
+  
+  // 1. ตรวจสอบจาก CONFIG
+  if (CONFIG.DRIVE_FOLDER_ID && CONFIG.DRIVE_FOLDER_ID !== 'YOUR_DRIVE_FOLDER_ID_HERE' && CONFIG.DRIVE_FOLDER_ID !== '') {
     folderId = CONFIG.DRIVE_FOLDER_ID;
-  } else {
-    folderId = PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID');
-    if (!folderId) {
-      try {
-        const folder = DriveApp.createFolder(CONFIG.SCHOOL_NAME + ' - Images');
-        folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-        folderId = folder.getId();
-        PropertiesService.getScriptProperties().setProperty('DRIVE_FOLDER_ID', folderId);
-      } catch (e) {
-        throw new Error("สร้างโฟลเดอร์สำหรับเก็บภาพล้มเหลว: " + e.message);
+  } 
+  
+  // 2. ตรวจสอบจาก Settings Sheet
+  if (!folderId) {
+    try {
+      const ss = getActiveSS();
+      const settingsSheet = ss.getSheetByName('Settings');
+      if (settingsSheet) {
+        const data = settingsSheet.getDataRange().getValues();
+        for (let i = 1; i < data.length; i++) {
+          if (data[i][0] === 'driveFolderId' && data[i][1]) {
+            folderId = data[i][1];
+            break;
+          }
+        }
       }
+    } catch (e) {}
+  }
+  
+  // 3. ตรวจสอบจาก PropertiesService
+  if (!folderId) {
+    folderId = PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID');
+  }
+  
+  // 4. หากยังไม่มีเลย ให้สร้างใหม่แบบอัตโนมัติ
+  if (!folderId) {
+    try {
+      const folder = DriveApp.createFolder(CONFIG.SCHOOL_NAME + ' - Website Portal');
+      folder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      folderId = folder.getId();
+      PropertiesService.getScriptProperties().setProperty('DRIVE_FOLDER_ID', folderId);
+      
+      // บันทึกลง Settings Sheet ด้วย (ถ้ามีชีตแล้ว)
+      try {
+        const ss = getActiveSS();
+        const settingsSheet = ss.getSheetByName('Settings');
+        if (settingsSheet) {
+          settingsSheet.appendRow(['driveFolderId', folderId]);
+        }
+      } catch (err) {}
+    } catch (e) {
+      throw new Error("สร้างโฟลเดอร์สำหรับเก็บภาพล้มเหลว: " + e.message);
     }
   }
+  
   return DriveApp.getFolderById(folderId);
 }
 
@@ -119,26 +153,89 @@ function getPublicData() {
 function setupSpreadsheet() {
   const ss = getActiveSS();
 
-  // Sheet: News
+  // 1. ตรวจสอบหรือสร้างโฟลเดอร์หลักสำหรับจัดเก็บไฟล์ใน Drive อัตโนมัติ
+  let folderId = '';
+  let mainFolder;
+  try {
+    folderId = PropertiesService.getScriptProperties().getProperty('DRIVE_FOLDER_ID');
+    if (folderId) {
+      mainFolder = DriveApp.getFolderById(folderId);
+    }
+  } catch (e) {
+    folderId = '';
+  }
+
+  if (!folderId) {
+    try {
+      mainFolder = DriveApp.createFolder(CONFIG.SCHOOL_NAME + ' - Website Portal');
+      mainFolder.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      folderId = mainFolder.getId();
+      PropertiesService.getScriptProperties().setProperty('DRIVE_FOLDER_ID', folderId);
+    } catch (e) {
+      Logger.log("สร้างโฟลเดอร์หลักล้มเหลว: " + e.message);
+    }
+  }
+
+  // 2. สร้างชีตย่อยและหัวตารางพร้อมข้อมูลตัวอย่างเริ่มต้น
+  
+  // Sheet: News (ข่าวสารประชาสัมพันธ์)
   if (!ss.getSheetByName('News')) {
     const s = ss.insertSheet('News');
     s.appendRow(['id','title','content','imageUrl','category','author','date','published']);
     s.getRange(1,1,1,8).setFontWeight('bold').setBackground('#1B4F72').setFontColor('white');
     s.setColumnWidth(3, 400);
+    
+    // ข้อมูลตัวอย่างข่าว 1
+    s.appendRow([
+      Utilities.getUuid(),
+      'ขอเชิญร่วมงานวันสถาปนาโรงเรียน ครบรอบ 25 ปี',
+      '<p>โรงเรียนขอเชิญชวนคณะครู ศิษย์เก่า ศิษย์ปัจจุบัน และผู้ปกครองทุกท่าน ร่วมงานวันสถาปนาโรงเรียน ครบรอบ 25 ปี ในวันที่ 15 มิถุนายนนี้ ภายในงานจะมีพิธีทำบุญตักบาตร กิจกรรมนิทรรศการวิชาการ และการแสดงของนักเรียนทุกระดับชั้น</p><p>กำหนดการเริ่มตั้งแต่เวลา 08:30 น. เป็นต้นไป ณ หอประชุมใหญ่อาคารเรียนรวม ขอเรียนเชิญทุกท่านร่วมเป็นเกียรติในพิธีดังกล่าว</p>',
+      'https://image.pollinations.ai/prompt/school%20celebration%20anniversary%20ceremony%20balloons%20students%20happy%2016%3A9?width=1024&height=576&nologo=true',
+      'กิจกรรม',
+      'ฝ่ายประชาสัมพันธ์',
+      new Date().toISOString(),
+      true
+    ]);
   }
 
-  // Sheet: Activities
+  // Sheet: Activities (ภาพแกลเลอรีภาพกิจกรรม)
   if (!ss.getSheetByName('Activities')) {
     const s = ss.insertSheet('Activities');
     s.appendRow(['id','title','description','imageUrl','date','published']);
     s.getRange(1,1,1,6).setFontWeight('bold').setBackground('#1E8449').setFontColor('white');
+    
+    // ข้อมูลตัวอย่างกิจกรรม 1
+    s.appendRow([
+      Utilities.getUuid(),
+      'กิจกรรมค่ายจิตอาสาพัฒนาสิ่งแวดล้อมชุมชน',
+      'คณะครูและตัวแทนนักเรียนชั้นมัธยมศึกษาตอนปลาย ร่วมกันจัดกิจกรรมบำเพ็ญประโยชน์ ปลูกป่าชายเลนและทำความสะอาดชายหาด เพื่อสร้างจิตสำนึกรักสิ่งแวดล้อมและการมีส่วนร่วมกับชุมชนรอบโรงเรียน',
+      'https://image.pollinations.ai/prompt/high%20school%20students%20planting%20trees%20volunteering%20nature%20sunny%20day%2016%3A9?width=1024&height=576&nologo=true',
+      new Date().toISOString(),
+      true
+    ]);
   }
 
-  // Sheet: Events
+  // Sheet: Events (ปฏิทินกิจกรรม)
   if (!ss.getSheetByName('Events')) {
     const s = ss.insertSheet('Events');
     s.appendRow(['id','title','description','eventDate','time','location','color','published']);
     s.getRange(1,1,1,8).setFontWeight('bold').setBackground('#7D3C98').setFontColor('white');
+    
+    // คำนวณวันพรุ่งนี้และมะรืนนี้เพื่อให้ปฏิทินมีงานตัวอย่างแสดงผลทันที
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const tomorrowStr = tomorrow.getFullYear() + '-' + ('0' + (tomorrow.getMonth() + 1)).slice(-2) + '-' + ('0' + tomorrow.getDate()).slice(-2);
+    
+    s.appendRow([
+      Utilities.getUuid(),
+      'ประชุมผู้ปกครองภาคเรียนที่ 1',
+      'ชี้แจงแนวทางการเรียนการสอนและมาตรการป้องกันความปลอดภัย',
+      tomorrowStr,
+      '08:30 - 12:00 น.',
+      'หอประชุมใหญ่ อาคาร 2',
+      'blue',
+      true
+    ]);
   }
 
   // Sheet: Settings (CMS-driven config)
@@ -156,6 +253,7 @@ function setupSpreadsheet() {
       ['heroImageUrl',''],
       ['facebookUrl',''],
       ['lineOaUrl',''],
+      ['driveFolderId', folderId],
       
       // Dynamic About Us Settings
       ['aboutHistory', 'โรงเรียนมุ่งเน้นความเป็นเลิศทางด้านการศึกษาควบคู่ไปกับคุณธรรมจริยธรรม ก่อตั้งขึ้นด้วยความมุ่งมั่นที่จะพัฒนาเยาวชนให้เติบโตขึ้นเป็นบุคลากรที่มีความรู้ ความสามารถ และทักษะที่จำเป็นในศตวรรษที่ 21 ภายใต้สภาพแวดล้อมที่ส่งเสริมการเรียนรู้และการฝึกฝนทักษะรอบด้าน'],
@@ -186,9 +284,27 @@ function setupSpreadsheet() {
       ['themeFontSizeHeading', '1.85rem']
     ].forEach(r => s.appendRow(r));
     s.getRange(1,1,1,2).setFontWeight('bold').setBackground('#1B4F72').setFontColor('white');
+  } else {
+    // หากมีชีต Settings อยู่แล้ว ตรวจสอบว่ามีคีย์ driveFolderId หรือไม่
+    try {
+      const settingsSheet = ss.getSheetByName('Settings');
+      const data = settingsSheet.getDataRange().getValues();
+      let hasDriveId = false;
+      for (let i = 1; i < data.length; i++) {
+        if (data[i][0] === 'driveFolderId') {
+          hasDriveId = true;
+          if (!data[i][1] && folderId) {
+            settingsSheet.getRange(i + 1, 2).setValue(folderId);
+          }
+        }
+      }
+      if (!hasDriveId && folderId) {
+        settingsSheet.appendRow(['driveFolderId', folderId]);
+      }
+    } catch(err) {}
   }
 
-  // Sheet: Admins
+  // Sheet: Admins (ข้อมูลบัญชี)
   if (!ss.getSheetByName('Admins')) {
     const s = ss.insertSheet('Admins');
     s.appendRow(['username','password_hash','name','created_at']);
@@ -196,55 +312,40 @@ function setupSpreadsheet() {
     s.getRange(1,1,1,4).setFontWeight('bold').setBackground('#922B21').setFontColor('white');
   }
 
-  // Sheet: Board (Dynamic executives list)
+  // Sheet: Board (ข้อมูลผู้บริหาร)
   if (!ss.getSheetByName('Board')) {
     const s = ss.insertSheet('Board');
     s.appendRow(['id','name','role','imageUrl','published','order']);
     s.getRange(1,1,1,6).setFontWeight('bold').setBackground('#7D6608').setFontColor('white');
-    
-    // Attempt migration from existing settings to prevent data loss
-    let dirName = 'ผอ.สมชาย ใจดี', dirRole = 'ผู้อำนวยการโรงเรียน', dirImg = '';
-    let dep1Name = 'รองฯ สมศรี รักเรียน', dep1Role = 'รองผู้อำนวยการฝ่ายวิชาการ', dep1Img = '';
-    let dep2Name = 'รองฯ สมศักดิ์ มุ่งมั่น', dep2Role = 'รองผู้อำนวยการฝ่ายบริหารงานทั่วไป', dep2Img = '';
-    
-    try {
-      const settingsSheet = ss.getSheetByName('Settings');
-      if (settingsSheet) {
-        const data = settingsSheet.getDataRange().getValues();
-        data.forEach(r => {
-          if (r[0] === 'aboutDirectorName') dirName = r[1];
-          if (r[0] === 'aboutDirectorRole') dirRole = r[1];
-          if (r[0] === 'aboutDirectorImageUrl') dirImg = r[1];
-          if (r[0] === 'aboutDeputy1Name') dep1Name = r[1];
-          if (r[0] === 'aboutDeputy1Role') dep1Role = r[1];
-          if (r[0] === 'aboutDeputy1ImageUrl') dep1Img = r[1];
-          if (r[0] === 'aboutDeputy2Name') dep2Name = r[1];
-          if (r[0] === 'aboutDeputy2Role') dep2Role = r[1];
-          if (r[0] === 'aboutDeputy2ImageUrl') dep2Img = r[1];
-        });
-      }
-    } catch (e) {}
-
-    s.appendRow([Utilities.getUuid(), dirName, dirRole, dirImg, true, 1]);
-    s.appendRow([Utilities.getUuid(), dep1Name, dep1Role, dep1Img, true, 2]);
-    s.appendRow([Utilities.getUuid(), dep2Name, dep2Role, dep2Img, true, 3]);
+    s.appendRow([Utilities.getUuid(), 'ผอ.สมชาย ใจดี', 'ผู้อำนวยการโรงเรียน', '', true, 1]);
+    s.appendRow([Utilities.getUuid(), 'รองฯ สมศรี รักเรียน', 'รองผู้อำนวยการฝ่ายวิชาการ', '', true, 2]);
+    s.appendRow([Utilities.getUuid(), 'รองฯ สมศักดิ์ มุ่งมั่น', 'รองผู้อำนวยการฝ่ายบริหารงานทั่วไป', '', true, 3]);
   }
 
-  // Sheet: Messages (Contact forms inbox)
+  // Sheet: Messages (กล่องข้อความติดต่อ)
   if (!ss.getSheetByName('Messages')) {
     const s = ss.insertSheet('Messages');
     s.appendRow(['id','name','email','subject','message','date','status','notes']);
     s.getRange(1,1,1,8).setFontWeight('bold').setBackground('#2E4053').setFontColor('white');
   }
 
-  // Sheet: Updates (Announcements and blog posts)
+  // Sheet: Updates (บทความ)
   if (!ss.getSheetByName('Updates')) {
     const s = ss.insertSheet('Updates');
     s.appendRow(['id','title','content','date','published']);
     s.getRange(1,1,1,5).setFontWeight('bold').setBackground('#2C3E50').setFontColor('white');
+    
+    // ข้อมูลตัวอย่างบทความ 1
+    s.appendRow([
+      Utilities.getUuid(),
+      'ยินดีต้อนรับสู่ระบบพอร์ทัลบทความสาระน่ารู้รูปแบบใหม่',
+      '<p>ยินดีต้อนรับทุกท่านเข้าสู่หน้าบทความและข่าวสารอัปเดตของโรงเรียนเรา ช่องทางนี้ออกแบบมาเพื่อเผยแพร่ข้อมูลข่าวสาร สาระน่ารู้ที่เป็นประโยชน์ รวมถึงความเคลื่อนไหวทางวิชาการและกิจกรรมของโรงเรียน</p><p>ท่านสามารถคลิกอ่านเนื้อหาแบบเจาะลึกได้จากหน้านี้โดยตรงผ่านระบบ Popup สุดหรูหราที่จัดเตรียมไว้ให้ครับ</p>',
+      new Date().toISOString(),
+      true
+    ]);
   }
 
-  // Migration for existing databases (ensure geminiApiKey, groqApiKey, aiTextProvider setting keys exist)
+  // Migration keys
   try {
     const settingsSheet = ss.getSheetByName('Settings');
     if (settingsSheet) {
@@ -263,7 +364,33 @@ function setupSpreadsheet() {
     }
   } catch (e) {}
 
-  return '✅ Setup สำเร็จ! เปิด Web App ได้เลย';
+  // 3. ทำการสำรองข้อมูลไฟล์ HTML ในระบบลงโฟลเดอร์ Google Drive (หากสามารถอ่านไฟล์ได้)
+  let backupLog = '';
+  if (mainFolder) {
+    const htmlFiles = ['index', 'home', 'about', 'updates', 'contact', 'admin', 'css', 'javascript'];
+    let count = 0;
+    htmlFiles.forEach(name => {
+      try {
+        // ค้นหาและลบไฟล์สำรองชื่อซ้ำในโฟลเดอร์ออกก่อน
+        const existingFiles = mainFolder.getFilesByName(name + '.html');
+        while (existingFiles.hasNext()) {
+          existingFiles.next().setTrashed(true);
+        }
+        
+        // อ่านเนื้อหาและเขียนไฟล์สำรอง
+        const content = HtmlService.createHtmlOutputFromFile(name).getContent();
+        mainFolder.createFile(name + '.html', content, MimeType.HTML);
+        count++;
+      } catch (err) {
+        Logger.log('ไม่สามารถสร้างไฟล์สำรอง ' + name + '.html: ' + err.message);
+      }
+    });
+    if (count > 0) {
+      backupLog = ` และได้สร้างไฟล์ HTML สำรองจำนวน ${count} ไฟล์ลงใน Google Drive เรียบร้อยแล้ว`;
+    }
+  }
+
+  return `✅ Setup สำเร็จ! สร้างตารางข้อมูลตัวอย่างเรียบร้อยแล้ว${backupLog}`;
 }
 
 // ===== AUTH =====
