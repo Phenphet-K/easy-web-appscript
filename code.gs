@@ -106,6 +106,23 @@ function sanitizeForJson(val) {
   return val;
 }
 
+// ===== HELPER: NORMALIZE THAI COMBINING CHARACTERS =====
+function normalizeThai(str) {
+  if (typeof str !== 'string') return str;
+  let res = str;
+  // 1. Swap tone mark typed before upper/lower vowel: tone_mark + vowel -> vowel + tone_mark
+  res = res.replace(/([\u0E48-\u0E4B])([\u0E31\u0E34-\u0E39])/g, '$2$1');
+  // 2. Swapping tone mark after Sra Am: U+0E33 (ำ) + U+0E48-U+0E4B (่ ้ ๊ ๋) -> tone_mark + U+0E33
+  res = res.replace(/\u0E33([\u0E48-\u0E4B])/g, '$1\u0E33');
+  // 3. Fix Nikkhahit + tone mark + Sra Aa: U+0E4D (ํ) + U+0E48-U+0E4B + U+0E32 (า) -> tone_mark + U+0E33 (ำ)
+  res = res.replace(/\u0E4D([\u0E48-\u0E4B])\u0E32/g, '$1\u0E33');
+  // 4. Fix tone mark + Nikkhahit + Sra Aa: U+0E48-U+0E4B + U+0E4D + U+0E32 -> tone_mark + U+0E33
+  res = res.replace(/([\u0E48-\u0E4B])\u0E4D\u0E32/g, '$1\u0E33');
+  // 5. Fix Nikkhahit + Sra Aa: U+0E4D + U+0E32 -> U+0E33 (ำ)
+  res = res.replace(/\u0E4D\u0E32/g, '\u0E33');
+  return res;
+}
+
 // ===== ROUTING & AUTO INIT =====
 function doGet(e) {
   // Auto-init DB tables if first deployment run
@@ -126,6 +143,7 @@ function doGet(e) {
     }
   } catch (err) {}
 
+  title = normalizeThai(title);
   const tmpl = HtmlService.createTemplateFromFile('index');
   return tmpl.evaluate()
     .setTitle(title)
@@ -456,7 +474,13 @@ function getSettings() {
     if (!sheet) return {};
     const data = sheet.getDataRange().getValues().slice(1);
     const obj = {};
-    data.forEach(r => { obj[r[0]] = r[1]; });
+    data.forEach(r => {
+      let val = r[1];
+      if (typeof val === 'string') {
+        val = normalizeThai(val);
+      }
+      obj[r[0]] = val;
+    });
     return sanitizeForJson(obj);
   } catch (e) { return {}; }
 }
@@ -573,6 +597,9 @@ function updateSettings(token, settings) {
     let value = settings[key];
     if (key === 'contactMapEmbedUrl') {
       value = processMapUrl(value);
+    }
+    if (typeof value === 'string') {
+      value = normalizeThai(value);
     }
     let found = false;
     for (let i = 1; i < data.length; i++) {

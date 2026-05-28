@@ -127,7 +127,7 @@
             console.error("Theme application failed:", themeErr);
           }
           // 2. Populate Header & Footer layouts
-          const name = window.siteSettings.schoolName || 'โรงเรียน';
+          const name = normalizeThai(window.siteSettings.schoolName || 'โรงเรียน');
           const headerSchoolName = document.getElementById('headerSchoolName');
           if (headerSchoolName) headerSchoolName.textContent = name;
           const headerSubtitle = document.getElementById('headerSubtitle');
@@ -143,7 +143,7 @@
             footerContact.textContent =
               [window.siteSettings.contactPhone, window.siteSettings.contactEmail].filter(Boolean).join(' | ');
           }
-          document.title = window.siteSettings.siteTitle || name;
+          document.title = normalizeThai(window.siteSettings.siteTitle || name);
           const fbLink = document.getElementById('fbLink');
           if (fbLink && window.siteSettings.facebookUrl) fbLink.href = window.siteSettings.facebookUrl;
           const lineLink = document.getElementById('lineLink');
@@ -290,6 +290,15 @@
     const items = news.slice(0, 6);
     grid.innerHTML = items.map((n, idx) => {
       const firstImg = n.imageUrl ? String(n.imageUrl).split(',')[0].trim() : '';
+      
+      // Create a plain text excerpt from HTML content for summary display
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = n.content || '';
+      let textExcerpt = tempDiv.textContent || tempDiv.innerText || '';
+      if (textExcerpt.length > 120) {
+        textExcerpt = textExcerpt.substring(0, 115) + '...';
+      }
+
       return `
       <div class="news-card" onclick="openHomeNewsModal(${idx})">
         <div class="news-card-img">
@@ -298,7 +307,7 @@
         <div class="news-card-body">
           <span class="news-category">${n.category || 'ทั่วไป'}</span>
           <h3>${escapeHtmlHome(n.title)}</h3>
-          <p>${escapeHtmlHome(n.content || '')}</p>
+          <p>${escapeHtmlHome(textExcerpt)}</p>
           <div class="news-meta">
             <span class="news-date">📅 ${formatDateHome(n.date)}</span>
             <span class="news-author">✍️ ${escapeHtmlHome(n.author || '')}</span>
@@ -406,6 +415,21 @@
       "'": '&#039;'
     };
     return String(text).replace(/[&<>"']/g, m => map[m]);
+  }
+  function normalizeThai(str) {
+    if (typeof str !== 'string') return str;
+    let res = str;
+    // 1. Swap tone mark typed before upper/lower vowel: tone_mark + vowel -> vowel + tone_mark
+    res = res.replace(/([\u0E48-\u0E4B])([\u0E31\u0E34-\u0E39])/g, '$2$1');
+    // 2. Swapping tone mark after Sra Am: U+0E33 (ำ) + U+0E48-U+0E4B (่ ้ ๊ ๋) -> tone_mark + U+0E33
+    res = res.replace(/\u0E33([\u0E48-\u0E4B])/g, '$1\u0E33');
+    // 3. Fix Nikkhahit + tone mark + Sra Aa: U+0E4D (ํ) + U+0E48-U+0E4B + U+0E32 (า) -> tone_mark + U+0E33 (ำ)
+    res = res.replace(/\u0E4D([\u0E48-\u0E4B])\u0E32/g, '$1\u0E33');
+    // 4. Fix tone mark + Nikkhahit + Sra Aa: U+0E48-U+0E4B + U+0E4D + U+0E32 -> tone_mark + U+0E33
+    res = res.replace(/([\u0E48-\u0E4B])\u0E4D\u0E32/g, '$1\u0E33');
+    // 5. Fix Nikkhahit + Sra Aa: U+0E4D + U+0E32 -> U+0E33 (ำ)
+    res = res.replace(/\u0E4D\u0E32/g, '\u0E33');
+    return res;
   }
   /* ============================================================
      ABOUT COMPONENT JAVASCRIPT
