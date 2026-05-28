@@ -3,8 +3,8 @@
 // ============================================================
 
 const CONFIG = {
-  SHEET_ID: '1Lf_s0heJKdKZU8TSZcklqnSMw5I8_gL3VhSvPUrPY08',
-  DRIVE_FOLDER_ID: '1u-g366a1GCG1DM_s6bXTsmCVRA5DCA54',
+  SHEET_ID: 'Sheet id',
+  DRIVE_FOLDER_ID: 'folder id',
   SCHOOL_NAME: 'โรงเรียนตัวอย่าง',
   SESSION_HOURS: 8
 };
